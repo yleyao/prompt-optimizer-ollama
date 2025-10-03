@@ -13,6 +13,8 @@ function getStaticModelKeys(): string[] {
     DEEPSEEK_API_KEY: '',
     SILICONFLOW_API_KEY: '',
     ZHIPU_API_KEY: '',
+    OLLAMA_API_KEY: '',
+    OLLAMA_API_BASE_URL: '',
     CUSTOM_API_KEY: '',
     CUSTOM_API_BASE_URL: '',
     CUSTOM_API_MODEL: ''

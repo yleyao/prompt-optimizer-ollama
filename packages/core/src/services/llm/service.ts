@@ -959,7 +959,20 @@ export class LLMService implements ILLMService {
         provider: provider,
       });
 
-      // 发送一个简单的测试消息
+      const modelConfig = await this.modelManager.getModel(provider);
+      if (!modelConfig) {
+        throw new RequestConfigError(`模型 ${provider} 不存在`);
+      }
+
+      this.validateModelConfig(modelConfig);
+
+      // 对于 Ollama，直接测试 models 端点（更快且更可靠）
+      if (provider === 'ollama' || modelConfig.provider === 'ollama') {
+        await this.testOllamaConnection(modelConfig);
+        return;
+      }
+
+      // 对于其他提供商，发送一个简单的测试消息
       const testMessages: Message[] = [
         {
           role: 'user',
@@ -975,6 +988,80 @@ export class LLMService implements ILLMService {
         throw error;
       }
       throw new APIError(`连接测试失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 测试 Ollama 连接
+   * 使用 /v1/models 端点进行快速连接测试
+   */
+  private async testOllamaConnection(modelConfig: ModelConfig): Promise<void> {
+    try {
+      const baseURL = modelConfig.baseURL?.replace('/v1', '') || 'http://localhost:11434';
+      const testURL = `${baseURL}/v1/models`;
+
+      console.log('测试 Ollama 连接:', testURL);
+
+      // 获取当前浏览器访问地址
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+      console.log('浏览器当前访问地址:', currentOrigin);
+
+      // 测试 OpenAI 兼容的 /v1/models 端点
+      const response = await fetch(testURL, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // 添加超时控制
+        signal: AbortSignal.timeout(10000), // 10秒超时
+      });
+
+      if (!response.ok) {
+        // 403 通常表示 CORS 问题
+        if (response.status === 403) {
+          throw new Error(`CORS 配置错误: Ollama 拒绝来自 ${currentOrigin} 的请求。请在 Ollama 所在机器上设置环境变量 OLLAMA_ORIGINS="${currentOrigin}" 或 OLLAMA_ORIGINS="*" 后重启 Ollama 服务。`);
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // 验证响应格式
+      if (!data || !data.data || !Array.isArray(data.data)) {
+        throw new Error('Invalid response format from Ollama');
+      }
+
+      console.log('Ollama 连接测试成功，可用模型:', data.data.length);
+    } catch (error: any) {
+      console.error('Ollama 连接测试详情:', error);
+
+      // 提供更详细的错误信息
+      let errorMessage = error.message;
+
+      if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+        errorMessage = `连接超时，请检查 Ollama 服务是否运行在 ${modelConfig.baseURL}`;
+      } else if (error.message === 'Failed to fetch') {
+        const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+        errorMessage = `浏览器无法访问 ${modelConfig.baseURL}
+
+可能原因：CORS 跨域限制
+
+解决方案：
+1. 在 Ollama 所在机器（Windows/Linux）设置环境变量：
+   OLLAMA_ORIGINS="${currentOrigin}"
+   或
+   OLLAMA_ORIGINS="*"  (允许所有来源，仅用于开发)
+
+2. 重启 Ollama 服务
+
+3. 验证配置：
+   在浏览器控制台运行：
+   fetch('${modelConfig.baseURL}/v1/models').then(r=>r.json()).then(console.log)
+
+详细配置方法请查看项目文档或 Ollama 官方文档。`;
+      }
+
+      throw new APIError(errorMessage);
     }
   }
 
@@ -1024,6 +1111,8 @@ export class LLMService implements ILLMService {
         models = await this.fetchAnthropicModelsInfo(modelConfig);
       } else if (provider === 'deepseek' || modelConfig.provider === 'deepseek') {
         models = await this.fetchDeepSeekModelsInfo(modelConfig);
+      } else if (provider === 'ollama' || modelConfig.provider === 'ollama') {
+        models = await this.fetchOllamaModelsInfo(modelConfig);
       } else {
         // OpenAI兼容格式的API，包括自定义模型和Ollama
         models = await this.fetchOpenAICompatibleModelsInfo(modelConfig);
@@ -1169,6 +1258,96 @@ export class LLMService implements ILLMService {
         { id: 'deepseek-chat', name: 'DeepSeek Chat' },
         { id: 'deepseek-coder', name: 'DeepSeek Coder' }
       ];
+    }
+  }
+
+  /**
+   * 获取Ollama模型信息
+   */
+  private async fetchOllamaModelsInfo(modelConfig: ModelConfig): Promise<ModelInfo[]> {
+    console.log(`获取${modelConfig.name || 'Ollama'}的模型列表`);
+
+    try {
+      // 优先使用 OpenAI 兼容的 /v1/models 端点（支持 CORS）
+      const baseURL = modelConfig.baseURL?.replace('/v1', '') || 'http://localhost:11434';
+
+      // 首先尝试使用 /v1/models 端点（OpenAI 兼容，有 CORS 支持）
+      try {
+        const response = await fetch(`${baseURL}/v1/models`);
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // OpenAI 兼容格式: { object: "list", data: [ { id: "model-name", ... }, ... ] }
+          if (data && data.data && Array.isArray(data.data)) {
+            const models = data.data
+              .map((model: any) => ({
+                id: model.id,
+                name: model.id
+              }))
+              .sort((a: ModelInfo, b: ModelInfo) => a.id.localeCompare(b.id));
+
+            if (models.length > 0) {
+              console.log(`成功获取 ${models.length} 个 Ollama 模型`);
+              return models;
+            }
+          }
+        } else if (response.status === 403) {
+          // CORS 错误，抛出详细说明
+          const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+          throw new APIError(`CORS 错误: Ollama 拒绝来自 ${currentOrigin} 的请求。请设置 OLLAMA_ORIGINS 环境变量后重启 Ollama 服务。`);
+        }
+      } catch (v1Error: any) {
+        // 如果是 CORS 错误，直接抛出
+        if (v1Error instanceof APIError) {
+          throw v1Error;
+        }
+
+        // 如果 /v1/models 不可用，尝试 /api/tags（仅在非浏览器环境或同源情况下可用）
+        console.log('/v1/models 端点不可用，尝试 /api/tags 端点');
+
+        const tagsResponse = await fetch(`${baseURL}/api/tags`);
+
+        if (!tagsResponse.ok) {
+          if (tagsResponse.status === 403) {
+            const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+            throw new APIError(`CORS 错误: Ollama 拒绝来自 ${currentOrigin} 的请求。请设置 OLLAMA_ORIGINS 环境变量后重启 Ollama 服务。`);
+          }
+          throw new Error(`HTTP error! status: ${tagsResponse.status}`);
+        }
+
+        const tagsData = await tagsResponse.json();
+
+        // Ollama 原生格式: { models: [ { name: "llama2:latest", ... }, ... ] }
+        if (tagsData && tagsData.models && Array.isArray(tagsData.models)) {
+          const models = tagsData.models
+            .map((model: any) => ({
+              id: model.name,
+              name: model.name
+            }))
+            .sort((a: ModelInfo, b: ModelInfo) => a.id.localeCompare(b.id));
+
+          if (models.length > 0) {
+            console.log(`成功获取 ${models.length} 个 Ollama 模型（通过 /api/tags）`);
+            return models;
+          }
+        }
+      }
+
+      // 如果两个端点都没有返回有效数据，返回空列表并给出警告
+      console.warn('未能从 Ollama 获取模型列表，返回空列表');
+      return [];
+
+    } catch (error: any) {
+      console.error('Failed to fetch Ollama model list:', error);
+
+      // 如果是 APIError（CORS 错误），直接抛出
+      if (error instanceof APIError) {
+        throw error;
+      }
+
+      // 其他错误，包装后抛出
+      throw new APIError(`获取 Ollama 模型列表失败: ${error.message}`);
     }
   }
 

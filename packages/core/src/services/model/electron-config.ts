@@ -80,6 +80,8 @@ export class ElectronConfigManager {
       DEEPSEEK_API_KEY: getEnv('VITE_DEEPSEEK_API_KEY').trim(),
       SILICONFLOW_API_KEY: getEnv('VITE_SILICONFLOW_API_KEY').trim(),
       ZHIPU_API_KEY: getEnv('VITE_ZHIPU_API_KEY').trim(),
+      OLLAMA_API_KEY: getEnv('VITE_OLLAMA_API_KEY').trim(),
+      OLLAMA_API_BASE_URL: getEnv('VITE_OLLAMA_API_BASE_URL'),
       CUSTOM_API_KEY: getEnv('VITE_CUSTOM_API_KEY').trim(),
       CUSTOM_API_BASE_URL: getEnv('VITE_CUSTOM_API_BASE_URL'),
       CUSTOM_API_MODEL: getEnv('VITE_CUSTOM_API_MODEL')

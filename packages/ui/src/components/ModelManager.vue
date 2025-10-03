@@ -785,7 +785,7 @@ const loadModels = async () => {
 
 // 判断是否为默认模型
 const isDefaultModel = (key) => {
-  return ['openai', 'gemini', 'deepseek', 'zhipu'].includes(key);
+  return ['openai', 'gemini', 'deepseek', 'zhipu', 'ollama'].includes(key);
 };
 
 // =============== 模型管理函数 ===============
@@ -1181,7 +1181,7 @@ watch(() => editingModel.value?.apiKey, (newValue) => {
    }
    // For new models, derive from key if it matches a known provider, else default to 'custom'
    // This helps in suggesting relevant advanced parameters early.
-   const knownProviders = ['openai', 'gemini', 'deepseek', 'zhipu', 'siliconflow'];
+   const knownProviders = ['openai', 'gemini', 'deepseek', 'zhipu', 'siliconflow', 'ollama'];
    if (newModel.value.key && knownProviders.includes(newModel.value.key.toLowerCase())) {
      return newModel.value.key.toLowerCase();
    }
@@ -1354,7 +1354,7 @@ watch(() => newModel.value.key, (newKey) => {
   // it might be good to reset llmParams or re-evaluate defaults.
   // For simplicity now, we can reset if the key change might imply a different context.
   // This is a basic reset; more sophisticated logic could merge common params if desired.
-  const knownProviders = ['openai', 'gemini', 'deepseek', 'zhipu', 'siliconflow'];
+  const knownProviders = ['openai', 'gemini', 'deepseek', 'zhipu', 'siliconflow', 'ollama'];
   let newProvider = 'custom';
   if (newKey && knownProviders.includes(newKey.toLowerCase())) {
     newProvider = newKey.toLowerCase();

@@ -17,7 +17,7 @@ export interface ModelConfig {
   /** 是否启用 */
   enabled: boolean;
   /** 提供商 */
-  provider: 'deepseek' | 'gemini' | 'custom' | 'zhipu' | string;
+  provider: 'deepseek' | 'gemini' | 'custom' | 'zhipu' | 'ollama' | string;
   /** 是否使用Vercel代理 */
   useVercelProxy?: boolean;
   /** 是否使用Docker代理 */

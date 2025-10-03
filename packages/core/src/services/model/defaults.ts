@@ -10,6 +10,8 @@ const staticModels: Record<string, ModelConfig> = createStaticModels({
   DEEPSEEK_API_KEY: getEnvVar('VITE_DEEPSEEK_API_KEY').trim(),
   SILICONFLOW_API_KEY: getEnvVar('VITE_SILICONFLOW_API_KEY').trim(),
   ZHIPU_API_KEY: getEnvVar('VITE_ZHIPU_API_KEY').trim(),
+  OLLAMA_API_KEY: getEnvVar('VITE_OLLAMA_API_KEY').trim(),
+  OLLAMA_API_BASE_URL: getEnvVar('VITE_OLLAMA_API_BASE_URL'),
   CUSTOM_API_KEY: getEnvVar('VITE_CUSTOM_API_KEY').trim(),
   CUSTOM_API_BASE_URL: getEnvVar('VITE_CUSTOM_API_BASE_URL'),
   CUSTOM_API_MODEL: getEnvVar('VITE_CUSTOM_API_MODEL')

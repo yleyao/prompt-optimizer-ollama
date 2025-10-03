@@ -10,6 +10,8 @@ export function createStaticModels(envVars: {
   DEEPSEEK_API_KEY: string;
   SILICONFLOW_API_KEY: string;
   ZHIPU_API_KEY: string;
+  OLLAMA_API_KEY: string;
+  OLLAMA_API_BASE_URL: string;
   CUSTOM_API_KEY: string;
   CUSTOM_API_BASE_URL: string;
   CUSTOM_API_MODEL: string;
@@ -63,6 +65,16 @@ export function createStaticModels(envVars: {
       apiKey: envVars.ZHIPU_API_KEY,
       enabled: !!envVars.ZHIPU_API_KEY,
       provider: 'zhipu',
+      llmParams: {}
+    },
+    ollama: {
+      name: 'Ollama',
+      baseURL: envVars.OLLAMA_API_BASE_URL || 'http://localhost:11434/v1',
+      models: ['llama2', 'llama3', 'qwen2.5', 'yi', 'gemma2'],
+      defaultModel: 'llama3',
+      apiKey: envVars.OLLAMA_API_KEY || '',
+      enabled: !!(envVars.OLLAMA_API_BASE_URL || envVars.OLLAMA_API_KEY),
+      provider: 'ollama',
       llmParams: {}
     },
     custom: {
